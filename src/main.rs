@@ -4,11 +4,13 @@ mod foob;
 mod game_data;
 mod game_state;
 mod snek;
+mod screen;
 
 use foob::*;
 use game_data::*;
 use game_state::*;
 use snek::*;
+use screen::*;
 
 fn main() {
     App::new()
@@ -16,6 +18,7 @@ fn main() {
             title: "Snek!".to_string(),
             width: 900.0,
             height: 900.0,
+            resizable: false,
             ..Default::default()
         })
         .insert_resource(GameData {
@@ -26,6 +29,7 @@ fn main() {
         .add_plugin(SnekPlugin)
         .add_plugin(FoobPlugin)
         .add_plugin(GameStatePlugin)
+        .add_plugin(ScreenPlugin)
         .add_startup_system(setup)
         .run();
 }
