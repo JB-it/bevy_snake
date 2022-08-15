@@ -50,7 +50,8 @@ impl Plugin for SnekPlugin {
             .add_system(eating_system)
             .add_system(collission_system)
             .add_system(move_snek)
-            .add_system(slowly_kill_snek);
+            .add_system(slowly_kill_snek)
+            .add_system(update_score);
     }
 }
 
@@ -269,5 +270,15 @@ fn eating_system(
                 snek_len.0 += 1;
             }
         }
+    }
+}
+
+fn update_score(
+    mut snek_len_query: Query<&SnekLen, With<Player>>,
+    mut game_data: ResMut<GameData>,
+) {
+    for snek_len in snek_len_query.iter() {
+        game_data.score = snek_len.0 as i32;
+        break; //Only one player
     }
 }
