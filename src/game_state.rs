@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game_data::{self, GameData};
-use crate::snek::*;
+use crate::game_data::GameData;
 
 #[derive(PartialEq, Eq)]
 pub enum GameState {
@@ -18,11 +17,7 @@ impl Plugin for GameStatePlugin {
     }
 }
 
-fn handle_gamestate_system(
-    mut game_data: ResMut<GameData>, 
-    keyboard_input: Res<Input<KeyCode>>,
-    commands: Commands,
-) {
+fn handle_gamestate_system(mut game_data: ResMut<GameData>, keyboard_input: Res<Input<KeyCode>>) {
     match game_data.game_state {
         GameState::Menu => {
             if keyboard_input.just_pressed(KeyCode::D)
@@ -39,8 +34,7 @@ fn handle_gamestate_system(
         }
         GameState::Playing => {}
         GameState::GameOver => {
-            if keyboard_input.just_pressed(KeyCode::Space)
-            {
+            if keyboard_input.just_pressed(KeyCode::Space) {
                 game_data.game_state = GameState::Menu;
             }
         }

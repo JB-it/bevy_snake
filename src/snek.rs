@@ -1,6 +1,6 @@
 use bevy::{math::vec3, prelude::*, sprite::MaterialMesh2dBundle};
 
-use crate::{foob::Foob, game_data::GameData, game_state::GameState};
+use crate::{foob::Foob, game_data::GameData, game_state::GameState, settings::Settings};
 
 const MOVEMENT_STEP: f64 = 100.0;
 
@@ -44,14 +44,15 @@ pub struct SnekPlugin;
 
 impl Plugin for SnekPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup_snek)
+        app.add_system(setup_snek)
             .add_system(update_snek_len)
             .add_system(player_controller)
             .add_system(eating_system)
             .add_system(collission_system)
             .add_system(move_snek)
             .add_system(slowly_kill_snek)
-            .add_system(update_score);
+            .add_system(update_score)
+            .add_system(color_snek);
     }
 }
 
@@ -59,23 +60,46 @@ fn setup_snek(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    player_query: Query<&SnekHead, With<Player>>,
+    dead_snek_query: Query<(Entity, &SnekHead), (With<DeadSnek>, Without<Player>)>,
+    body_query: Query<(&SnekBody, Entity)>,
+    game_data: Res<GameData>,
+    mut foob_query: Query<&mut Transform, With<Foob>>,
 ) {
-    commands
-        .spawn_bundle(MaterialMesh2dBundle {
-            mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-            transform: Transform::default()
-                .with_scale(Vec3::splat(90.))
-                .with_translation(Vec3::new(100., 0., 1.)),
-            material: materials.add(ColorMaterial::from(Color::GREEN)),
-            ..default()
-        })
-        .insert(SnekHead)
-        .insert(SnekLen(1))
-        .insert(MovementTimer(Timer::from_seconds(0.3, true)))
-        .insert(SnekMovement {
-            direction: Direction::Right,
-        })
-        .insert(Player);
+    if game_data.game_state == GameState::Menu {
+        dead_snek_query.for_each(|(snek_entity, snek_head)| {
+            for (body, body_entity) in body_query.iter() {
+                if body.snek_head == *snek_head {
+                    commands.entity(body_entity).despawn();
+                }
+            }
+
+            commands.entity(snek_entity).despawn_recursive();
+        });
+
+        for mut foob_transform in foob_query.iter_mut() {
+            foob_transform.translation = vec3(0., 0., 1.);
+        }
+
+        if player_query.iter().len() == 0 {
+            commands
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+                    transform: Transform::default()
+                        .with_scale(Vec3::splat(90.))
+                        .with_translation(Vec3::new(100., 0., 2.)),
+                    material: materials.add(ColorMaterial::from(Color::GREEN)),
+                    ..default()
+                })
+                .insert(SnekHead)
+                .insert(SnekLen(1))
+                .insert(MovementTimer(Timer::from_seconds(0.3, true)))
+                .insert(SnekMovement {
+                    direction: Direction::Right,
+                })
+                .insert(Player);
+        }
+    }
 }
 
 fn update_snek_len(
@@ -100,7 +124,7 @@ fn update_snek_len(
                         ..Default::default()
                     }
                     .with_scale(Vec3::splat(90.))
-                    .with_translation(Vec3::new(-1000., -1000., 0.)),
+                    .with_translation(Vec3::new(-1000., -1000., 1.)),
                     material: materials.add(ColorMaterial::from(Color::DARK_GREEN)),
                     ..default()
                 })
@@ -121,6 +145,7 @@ fn move_snek(
         &SnekHead,
         &mut MovementTimer,
     )>,
+    settings: Res<Settings>,
     mut body_query: Query<(&mut Transform, &mut SnekBody), Without<SnekHead>>,
 ) {
     for (mut transform, snek_mov, snek_len, head, mut timer) in snek_query.iter_mut() {
@@ -130,9 +155,9 @@ fn move_snek(
                     continue;
                 }
                 body_part.lifetime -= 1;
-                if body_part.lifetime <= 0 {
-                    body_transform.translation = transform.translation.clone();
-                    body_transform.translation.z = 0.;
+                if body_part.lifetime == 0 {
+                    body_transform.translation = transform.translation;
+                    body_transform.translation.z = 1.;
                     body_part.lifetime = snek_len.0
                 }
             }
@@ -145,8 +170,14 @@ fn move_snek(
                 Direction::Left => movement.x -= MOVEMENT_STEP as f32,
                 Direction::Right => movement.x += MOVEMENT_STEP as f32,
             }
-            movement.x = (movement.x + 450.0 + 900.0) % 900.0 - 450.0;
-            movement.y = (movement.y + 450.0 + 900.0) % 900.0 - 450.0;
+
+            if settings.wraparound {
+                movement.x = (movement.x + 450.0 + 900.0) % 900.0 - 450.0;
+                movement.y = (movement.y + 450.0 + 900.0) % 900.0 - 450.0;
+            } else {
+                movement.x = movement.x.min(400.0).max(-400.0);
+                movement.y = movement.y.min(400.0).max(-400.0);
+            }
 
             transform.translation = movement;
         }
@@ -175,7 +206,7 @@ fn player_controller(
                 }
             }
             GameState::Menu => {
-                let mut head_position = snek_transform.translation.clone();
+                let mut head_position = snek_transform.translation;
                 head_position.z = 0.;
                 if head_position == vec3(100f32, 0f32, 0f32) {
                     snek_mov.direction = Direction::Up;
@@ -200,25 +231,22 @@ fn collission_system(
     mut game_data: ResMut<GameData>,
     mut commands: Commands,
 ) {
-    match game_data.game_state {
-        GameState::Playing => {
-            for (head_pos, head_entity) in head_query.iter_mut() {
-                for body_pos in body_transform_query.iter() {
-                    if head_pos.translation.x == body_pos.translation.x &&
-                        head_pos.translation.y == body_pos.translation.y {
+    if game_data.game_state == GameState::Playing {
+        for (head_pos, head_entity) in head_query.iter_mut() {
+            for body_pos in body_transform_query.iter() {
+                if head_pos.translation.x == body_pos.translation.x
+                    && head_pos.translation.y == body_pos.translation.y
+                {
+                    game_data.game_state = GameState::GameOver;
 
-                        game_data.game_state = GameState::GameOver;
-
-                        commands
-                            .entity(head_entity)
-                            .remove::<SnekMovement>()
-                            .remove::<Player>()
-                            .insert(DeadSnek);
-                    }
+                    commands
+                        .entity(head_entity)
+                        .remove::<SnekMovement>()
+                        .remove::<Player>()
+                        .insert(DeadSnek);
                 }
             }
         }
-        _ => {}
     }
 }
 
@@ -230,7 +258,7 @@ fn slowly_kill_snek(
 ) {
     for (mut timer, head_entity, snek_head, mut snek_len) in head_query.iter_mut() {
         if timer.0.tick(time.delta()).just_finished() {
-            if snek_len.0 <= 0 {
+            if snek_len.0 == 0 {
                 commands.entity(head_entity).despawn();
                 return;
             }
@@ -238,7 +266,7 @@ fn slowly_kill_snek(
             for (mut body_part, body_entity) in &mut body_query.iter_mut() {
                 if body_part.snek_head == *snek_head {
                     body_part.lifetime -= 1;
-                    if body_part.lifetime <= 0 {
+                    if body_part.lifetime == 0 {
                         commands.entity(body_entity).despawn();
                         snek_len.0 -= 1;
                     }
@@ -255,9 +283,9 @@ fn eating_system(
 ) {
     for (transform, mut snek_len, snek_head) in head_query.iter_mut() {
         for (foob_transform, mut foob) in foob_query.iter_mut() {
-            if transform.translation.x == foob_transform.translation.x &&
-            transform.translation.y == foob_transform.translation.y {
-
+            if transform.translation.x == foob_transform.translation.x
+                && transform.translation.y == foob_transform.translation.y
+            {
                 foob.eaten = true;
 
                 for mut snek_body in snek_body_query.iter_mut() {
@@ -273,12 +301,35 @@ fn eating_system(
     }
 }
 
-fn update_score(
-    mut snek_len_query: Query<&SnekLen, With<Player>>,
-    mut game_data: ResMut<GameData>,
-) {
-    for snek_len in snek_len_query.iter() {
+fn update_score(snek_len_query: Query<&SnekLen, With<Player>>, mut game_data: ResMut<GameData>) {
+    if let Some(snek_len) = snek_len_query.iter().next() {
         game_data.score = snek_len.0 as i32;
-        break; //Only one player
+    }
+}
+
+fn color_snek(
+    mut head_query: Query<&mut Handle<ColorMaterial>, With<SnekHead>>,
+    mut body_query: Query<&mut Handle<ColorMaterial>, (With<SnekBody>, Without<SnekHead>)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    settings: Res<Settings>,
+) {
+    for color in head_query.iter_mut() {
+        let mut color_mat = materials.get_mut(&color).unwrap();
+        color_mat.color = Color::rgba_u8(
+            settings.snek_head_color.r(),
+            settings.snek_head_color.g(),
+            settings.snek_head_color.b(),
+            settings.snek_head_color.a(),
+        );
+    }
+
+    for color in body_query.iter_mut() {
+        let mut color_mat = materials.get_mut(&color).unwrap();
+        color_mat.color = Color::rgba_u8(
+            settings.snek_body_color.r(),
+            settings.snek_body_color.g(),
+            settings.snek_body_color.b(),
+            settings.snek_body_color.a(),
+        );
     }
 }

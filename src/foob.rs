@@ -1,7 +1,10 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 
-use crate::snek::{SnekBody, SnekHead};
+use crate::{
+    settings::Settings,
+    snek::{SnekBody, SnekHead},
+};
 
 pub struct FoobPlugin;
 
@@ -12,7 +15,9 @@ pub struct Foob {
 
 impl Plugin for FoobPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(foob_setup).add_system(respawn_foob);
+        app.add_startup_system(foob_setup)
+            .add_system(respawn_foob)
+            .add_system(update_color);
     }
 }
 
@@ -24,8 +29,11 @@ fn foob_setup(
     commands
         .spawn_bundle(MaterialMesh2dBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-            transform: Transform::default()
-                .with_scale(Vec3::splat(90.)),
+            transform: Transform {
+                scale: Vec3::splat(90.),
+                translation: Vec3::new(0., 0., 1.),
+                ..Default::default()
+            },
             material: materials.add(ColorMaterial::from(Color::RED)),
             ..default()
         })
@@ -43,7 +51,7 @@ fn respawn_foob(
                 let new_position = Vec3::new(
                     (rand::thread_rng().gen_range(-4..4) * 100) as f32,
                     (rand::thread_rng().gen_range(-4..4) * 100) as f32,
-                    0.0,
+                    1.,
                 );
 
                 if snek_body
@@ -63,5 +71,21 @@ fn respawn_foob(
                 set_successfully = true;
             }
         }
+    }
+}
+
+fn update_color(
+    mut foob_query: Query<&mut Handle<ColorMaterial>, With<Foob>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    settings: Res<Settings>,
+) {
+    for color in foob_query.iter_mut() {
+        let mut color_mat = materials.get_mut(&color).unwrap();
+        color_mat.color = Color::rgba_u8(
+            settings.foob_color.r(),
+            settings.foob_color.g(),
+            settings.foob_color.b(),
+            settings.foob_color.a(),
+        );
     }
 }

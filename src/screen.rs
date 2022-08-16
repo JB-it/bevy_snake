@@ -1,8 +1,8 @@
-use bevy::{prelude::*};
+use bevy::prelude::*;
 use bevy::render::view::Visibility;
 pub struct ScreenPlugin;
 
-use crate::{game_state::GameState, game_data::GameData};
+use crate::{game_data::GameData, game_state::GameState};
 
 #[derive(Component)]
 pub struct ShowOnScreen(GameState);
@@ -16,16 +16,12 @@ pub struct ShowEndScore;
 impl Plugin for ScreenPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup_screen)
-        .add_system(screen_system)
-        .add_system(show_score);
+            .add_system(screen_system)
+            .add_system(show_score);
     }
 }
 
-fn setup_screen(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    game_data: Res<GameData>,
-) {
+fn setup_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
@@ -51,30 +47,58 @@ fn setup_screen(
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle::from_section(
-                "Rust Snek!",
-                TextStyle {
-                    font: asset_server.load("fonts/Roboto-Regular.ttf"),
-                    font_size: 128.0,
-                    color: Color::rgb(0.9, 0.9, 0.9),
-                },
-            )
-            .with_text_alignment(TextAlignment::CENTER)
-            .with_style(Style {
-                
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                margin: UiRect {
-                    left: Val::Px(0.0), 
-                    top: Val::Px(10.0),
+            parent.spawn_bundle(
+                TextBundle::from_section(
+                    "Rust Snek!",
+                    TextStyle {
+                        font: asset_server.load("fonts/Roboto-Regular.ttf"),
+                        font_size: 128.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                )
+                .with_text_alignment(TextAlignment::CENTER)
+                .with_style(Style {
+                    position_type: PositionType::Absolute,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    margin: UiRect {
+                        left: Val::Px(0.0),
+                        top: Val::Px(10.0),
+                        ..default()
+                    },
                     ..default()
-                },
-                ..default()
-        }));
-        }).with_children(|parent| {
-            parent.spawn_bundle(TextBundle::from_section(
-                "Press W, A, S, D or the arrow keys to start...",
+                }),
+            );
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(
+                TextBundle::from_section(
+                    "Press W, A, S, D or the arrow keys to start...",
+                    TextStyle {
+                        font: asset_server.load("fonts/Roboto-Regular.ttf"),
+                        font_size: 32.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                )
+                .with_text_alignment(TextAlignment::CENTER)
+                .with_style(Style {
+                    position_type: PositionType::Absolute,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    position: UiRect {
+                        top: Val::Px(150.0),
+                        ..default()
+                    },
+                    ..default()
+                }),
+            );
+        })
+        .insert(ShowOnScreen(GameState::Menu));
+
+    commands
+        .spawn_bundle(
+            TextBundle::from_section(
+                "Score: 00",
                 TextStyle {
                     font: asset_server.load("fonts/Roboto-Regular.ttf"),
                     font_size: 32.0,
@@ -87,38 +111,15 @@ fn setup_screen(
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 position: UiRect {
-                    top: Val::Px(150.0),
+                    top: Val::Px(10.0),
+                    left: Val::Px(10.0),
                     ..default()
                 },
                 ..default()
-            })
-        );
-    })
-    .insert(ShowOnScreen(GameState::Menu));
-
-    commands
-        .spawn_bundle(TextBundle::from_section(
-            "Score: 00",
-            TextStyle {
-                font: asset_server.load("fonts/Roboto-Regular.ttf"),
-                font_size: 32.0,
-                color: Color::rgb(0.9, 0.9, 0.9),
-            },
+            }),
         )
-        .with_text_alignment(TextAlignment::CENTER)
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            position: UiRect {
-                top: Val::Px(10.0),
-                left: Val::Px(10.0),
-                ..default()
-            },
-            ..default()
-        })
-    ).insert(ShowOnScreen(GameState::Playing))
-    .insert(ShowLiveScore);
+        .insert(ShowOnScreen(GameState::Playing))
+        .insert(ShowLiveScore);
 
     commands
         .spawn_bundle(NodeBundle {
@@ -145,72 +146,78 @@ fn setup_screen(
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle::from_section(
-                "Game Over",
-                TextStyle {
-                    font: asset_server.load("fonts/Roboto-Regular.ttf"),
-                    font_size: 128.0,
-                    color: Color::rgb(0.9, 0.9, 0.9),
-                },
-            )
-            .with_text_alignment(TextAlignment::CENTER)
-            .with_style(Style {
-                
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                margin: UiRect {
-                    left: Val::Px(0.0), 
-                    top: Val::Px(10.0),
+            parent.spawn_bundle(
+                TextBundle::from_section(
+                    "Game Over",
+                    TextStyle {
+                        font: asset_server.load("fonts/Roboto-Regular.ttf"),
+                        font_size: 128.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                )
+                .with_text_alignment(TextAlignment::CENTER)
+                .with_style(Style {
+                    position_type: PositionType::Absolute,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    margin: UiRect {
+                        left: Val::Px(0.0),
+                        top: Val::Px(10.0),
+                        ..default()
+                    },
                     ..default()
-                },
-                ..default()
-        }));
-        }).with_children(|parent| {
-            parent.spawn_bundle(TextBundle::from_section(
-                "Your Score: 00",
-                TextStyle {
-                    font: asset_server.load("fonts/Roboto-Regular.ttf"),
-                    font_size: 32.0,
-                    color: Color::rgb(0.9, 0.9, 0.9),
-                },
-            )
-            .with_text_alignment(TextAlignment::CENTER)
-            .with_style(Style {
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                position: UiRect {
-                    top: Val::Px(150.0),
-                    ..default()
-                },
-                ..default()
-            })
-        ).insert(ShowEndScore);
-    }).with_children(|parent| {
-        parent.spawn_bundle(TextBundle::from_section(
-            "Press space to restart",
-            TextStyle {
-                font: asset_server.load("fonts/Roboto-Regular.ttf"),
-                font_size: 24.0,
-                color: Color::rgb(0.9, 0.9, 0.9),
-            },
-        )
-        .with_text_alignment(TextAlignment::CENTER)
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            position: UiRect {
-                top: Val::Px(175.0),
-                ..default()
-            },
-            ..default()
+                }),
+            );
         })
-    );
-})
-    .insert(ShowOnScreen(GameState::GameOver));
-    
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(
+                    TextBundle::from_section(
+                        "Your Score: 00",
+                        TextStyle {
+                            font: asset_server.load("fonts/Roboto-Regular.ttf"),
+                            font_size: 32.0,
+                            color: Color::rgb(0.9, 0.9, 0.9),
+                        },
+                    )
+                    .with_text_alignment(TextAlignment::CENTER)
+                    .with_style(Style {
+                        position_type: PositionType::Absolute,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        position: UiRect {
+                            top: Val::Px(150.0),
+                            ..default()
+                        },
+                        ..default()
+                    }),
+                )
+                .insert(ShowEndScore);
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(
+                TextBundle::from_section(
+                    "Press space to restart",
+                    TextStyle {
+                        font: asset_server.load("fonts/Roboto-Regular.ttf"),
+                        font_size: 24.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                )
+                .with_text_alignment(TextAlignment::CENTER)
+                .with_style(Style {
+                    position_type: PositionType::Absolute,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    position: UiRect {
+                        top: Val::Px(175.0),
+                        ..default()
+                    },
+                    ..default()
+                }),
+            );
+        })
+        .insert(ShowOnScreen(GameState::GameOver));
 }
 
 fn screen_system(
