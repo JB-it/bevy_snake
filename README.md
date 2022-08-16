@@ -1,6 +1,6 @@
 # Bevy Snek
 
-A snake game written in Rust with the [Bevy Game Engine](https://bevyengine.org/)
+A snake game written in [Rust](https://www.rust-lang.org/) with the [Bevy Game Engine](https://bevyengine.org/)
 
 This project was used as a challenge for myself and to learn the Bevy Game Engine for future projects. 
 
